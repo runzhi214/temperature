@@ -43,7 +43,8 @@ jobs:
       - name: Sign EXE
         run: |
           $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\Bin" -Recurse -Filter "signtool.exe" | Where-Object { $_.FullName -match "x64" } | Select-Object -First 1
-          & $signtool.FullName sign /f cert.pfx /p temp123 /fd SHA256 /d "温度监控数据分析工具" "dist\温度监控数据分析工具.exe"
+          $exe = Get-ChildItem "dist" -Filter "*.exe" | Select-Object -First 1
+          & $signtool.FullName sign /f cert.pfx /p temp123 /fd SHA256 /d "Temperature Monitoring Tool" $exe.FullName
         shell: powershell
 
       - name: Upload artifact
