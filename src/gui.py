@@ -240,7 +240,7 @@ class TemperatureApp:
                     self._log(f"区间 {i + 1} 内无数据")
                 result = calculate(filtered, high, low, ea)
                 label = f"{start.strftime('%m-%d')}~{end.strftime('%m-%d')}"
-                self.results.append((result, label))
+                self.results.append((result, label, start, end))
                 self.root.after(0, lambda r=result, l=label: self._add_result_tab(r, l))
 
             self._log("全部计算完成")
@@ -358,9 +358,10 @@ class TemperatureApp:
             return
 
         try:
-            results = [r for r, _ in self.results]
-            labels = [l for _, l in self.results]
-            export_to_excel(results, filepath, range_labels=labels)
+            results = [r for r, _, _, _ in self.results]
+            labels = [l for _, l, _, _ in self.results]
+            range_times = [(s, e) for _, _, s, e in self.results]
+            export_to_excel(results, filepath, range_labels=labels, range_times=range_times)
             self._log(f"Excel导出完成: {os.path.basename(filepath)}")
             messagebox.showinfo("成功", f"Excel文件已保存:\n{filepath}")
         except PermissionError:

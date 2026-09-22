@@ -23,7 +23,7 @@ THIN_BORDER = Border(
 CENTER_ALIGN = Alignment(horizontal='center', vertical='center', wrap_text=True)
 
 
-def export_to_excel(results, filepath, range_labels=None):
+def export_to_excel(results, filepath, range_labels=None, range_times=None):
     logger = get_logger()
     wb = Workbook()
     wb.remove(wb.active)
@@ -34,6 +34,10 @@ def export_to_excel(results, filepath, range_labels=None):
             sheet_name = sheet_name[:31]
         ws = wb.create_sheet(title=sheet_name)
         _write_sheet(ws, result, i + 1)
+
+    if range_times and results:
+        overview_ws = wb.create_sheet(title="汇总")
+        _write_overview_sheet(overview_ws, results, range_times)
 
     try:
         wb.save(filepath)
@@ -120,8 +124,8 @@ def _write_detail_section(ws, start_row, result):
         return row
 
     for idx, seg in enumerate(alert_segments, 1):
-        start_str = seg.start.strftime("%Y-%m-%d %H:%M")
-        end_str = seg.end.strftime("%Y-%m-%d %H:%M")
+        start_str = seg.start.strftime("%Y-%m-%d %H:%M:%S")
+        end_str = seg.end.strftime("%Y-%m-%d %H:%M:%S")
         type_label = seg.alert_type.value
         duration_str = format_duration(seg.duration_seconds)
         values = [idx, start_str, end_str, type_label, duration_str]
@@ -136,6 +140,48 @@ def _write_detail_section(ws, start_row, result):
         row += 1
 
     return row
+
+
+def _write_overview_sheet(ws, results, range_times):
+    ws.cell(row=1, column=1, value="汇总").font = TITLE_FONT
+    ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=5)
+    ws.cell(row=1, column=1).alignment = CENTER_ALIGN
+
+    headers = ["序号", "开始时间", "结束时间", "状态", "持续时间"]
+    row = 3
+    for col, h in enumerate(headers, 1):
+        cell = ws.cell(row=row, column=col, value=h)
+        cell.font = HEADER_FONT
+        cell.fill = HEADER_FILL
+        cell.alignment = CENTER_ALIGN
+        cell.border = THIN_BORDER
+    row += 1
+
+    seq = 1
+    for i, (result, (start_time, end_time)) in enumerate(zip(results, range_times)):
+        start_str = start_time.strftime("%Y-%m-%d %H:%M")
+        end_str = end_time.strftime("%Y-%m-%d %H:%M")
+
+        high_secs = sum(s.duration_seconds for s in result.segments
+                        if s.alert_type == AlertType.HIGH)
+        low_secs = sum(s.duration_seconds for s in result.segments
+                       if s.alert_type == AlertType.LOW)
+
+        for status, secs, fill in [
+            ("高温报警", high_secs, HIGH_FILL),
+            ("低温报警", low_secs, LOW_FILL),
+        ]:
+            values = [seq, start_str, end_str, status, format_duration(secs)]
+            for col, v in enumerate(values, 1):
+                cell = ws.cell(row=row, column=col, value=v)
+                cell.alignment = CENTER_ALIGN
+                cell.border = THIN_BORDER
+                cell.fill = fill
+            row += 1
+            seq += 1
+
+    for col in range(1, 6):
+        ws.column_dimensions[get_column_letter(col)].width = 22
 
 
 def _write_statistics_section(ws, start_row, result):
