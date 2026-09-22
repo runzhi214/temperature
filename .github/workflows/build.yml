@@ -57,7 +57,8 @@ jobs:
             dist/
             cert.cer
 
-      - name: Release
+      - name: Release (latest)
+        if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
           files: |
@@ -67,6 +68,30 @@ jobs:
           tag_name: latest
           body: |
             ## 温度监控数据分析工具
+
+            下载下方文件即可使用：
+
+            - **温度监控数据分析工具.exe** — 主程序（已签名，发布者：肖润之）
+            - **cert.cer** — 证书文件（可选，用于消除 Windows 安全警告）
+
+            ### 首次使用
+
+            1. 下载 exe 文件
+            2. 若 Windows 提示安全警告，点击「更多信息」→「仍要运行」
+            3. 如需消除警告，双击 cert.cer → 安装证书 → 本地计算机 → 受信任的根证书颁发机构
+          prerelease: false
+          make_latest: true
+
+      - name: Release (tag)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.exe
+            cert.cer
+          name: ${{ github.ref_name }}
+          body: |
+            ## 温度监控数据分析工具 ${{ github.ref_name }}
 
             下载下方文件即可使用：
 
