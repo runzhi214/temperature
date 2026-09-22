@@ -74,7 +74,7 @@ def build_segments(records, high_threshold, low_threshold):
             records[i].temperature, high_threshold, low_threshold
         )
         if record_type != current_type:
-            current_end = records[i - 1].timestamp
+            current_end = records[i].timestamp
             duration = int((current_end - current_start).total_seconds() / 60)
             segments.append(AlertSegment(
                 current_start, current_end, current_type, duration

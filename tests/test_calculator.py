@@ -55,7 +55,7 @@ class TestBuildSegments(unittest.TestCase):
         self.assertEqual(segments[0].alert_type, AlertType.NORMAL)
         self.assertEqual(segments[1].alert_type, AlertType.HIGH)
         self.assertEqual(segments[2].alert_type, AlertType.NORMAL)
-        self.assertEqual(segments[1].duration_minutes, 20)
+        self.assertEqual(segments[1].duration_minutes, 40)
 
     def test_low_alert_segment(self):
         records = make_records(datetime(2024, 10, 1, 10, 0), [20.0, 5.0, 5.0, 20.0])
