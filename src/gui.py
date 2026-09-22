@@ -182,6 +182,7 @@ class TemperatureApp:
             try:
                 start = datetime.strptime(row['start'].get().strip(), "%Y-%m-%d %H:%M")
                 end = datetime.strptime(row['end'].get().strip(), "%Y-%m-%d %H:%M")
+                end = end.replace(second=59)
             except ValueError:
                 messagebox.showerror("错误", f"时间格式不正确，应为 YYYY-MM-DD HH:MM")
                 return

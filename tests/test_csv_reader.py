@@ -151,6 +151,35 @@ class TestFilterByRange(unittest.TestCase):
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0].temperature, 25.0)
 
+    def test_filter_with_seconds_in_data(self):
+        records = [
+            TemperatureRecord(datetime(2024, 10, 1, 23, 59, 30), 20.0),
+            TemperatureRecord(datetime(2024, 10, 2, 0, 0, 10), 25.0),
+            TemperatureRecord(datetime(2024, 10, 2, 23, 40, 9), 30.0),
+        ]
+        result = filter_by_range(
+            records,
+            datetime(2024, 10, 2, 0, 0),
+            datetime(2024, 10, 2, 23, 59, 59)
+        )
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result[0].temperature, 25.0)
+        self.assertEqual(result[1].temperature, 30.0)
+
+    def test_filter_end_boundary_with_seconds(self):
+        records = [
+            TemperatureRecord(datetime(2024, 10, 1, 23, 59, 45), 20.0),
+            TemperatureRecord(datetime(2024, 10, 2, 0, 0, 0), 25.0),
+        ]
+        end = datetime(2024, 10, 1, 23, 59).replace(second=59)
+        result = filter_by_range(
+            records,
+            datetime(2024, 10, 1, 0, 0),
+            end
+        )
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0].temperature, 20.0)
+
 
 if __name__ == '__main__':
     unittest.main()
