@@ -18,31 +18,31 @@ def make_result():
             start=datetime(2024, 10, 1, 10, 0),
             end=datetime(2024, 10, 1, 10, 40),
             alert_type=AlertType.NORMAL,
-            duration_minutes=40
+            duration_seconds=2400
         ),
         AlertSegment(
             start=datetime(2024, 10, 1, 10, 40),
             end=datetime(2024, 10, 1, 10, 52),
             alert_type=AlertType.HIGH,
-            duration_minutes=12
+            duration_seconds=720
         ),
         AlertSegment(
             start=datetime(2024, 10, 1, 10, 52),
             end=datetime(2024, 10, 1, 11, 0),
             alert_type=AlertType.NORMAL,
-            duration_minutes=8
+            duration_seconds=480
         ),
     ]
     summary = [
-        SummaryRow("温度正常", "48分钟", 48, 80.0, "—"),
-        SummaryRow("高温报警", "12分钟", 12, 20.0, 1),
-        SummaryRow("低温报警", "0分钟", 0, 0.0, 0),
+        SummaryRow("温度正常", "48分钟", 2880, 80.0, "—"),
+        SummaryRow("高温报警", "12分钟", 720, 20.0, 1),
+        SummaryRow("低温报警", "0秒", 0, 0.0, 0),
     ]
     stats = StatisticsInfo(
         start_time=datetime(2024, 10, 1, 10, 0),
         end_time=datetime(2024, 10, 1, 11, 0),
-        total_duration="1小时0分钟",
-        total_minutes=60,
+        total_duration="1小时",
+        total_seconds=3600,
         temp_max=35.0,
         temp_min=20.0,
         temp_avg=25.0,

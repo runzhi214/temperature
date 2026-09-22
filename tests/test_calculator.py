@@ -1,5 +1,5 @@
 import unittest
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from src.calculator import (
     classify_temperature, build_segments, format_duration,
@@ -10,12 +10,7 @@ from src.csv_reader import TemperatureRecord
 
 def make_records(start, temps, interval_minutes=20):
     records = []
-    base = datetime(2024, 10, 1, 10, 0)
     for i, t in enumerate(temps):
-        ts = datetime(
-            start.year, start.month, start.day, start.hour, start.minute
-        )
-        from datetime import timedelta
         ts = start + timedelta(minutes=interval_minutes * i)
         records.append(TemperatureRecord(ts, t))
     return records
@@ -46,7 +41,7 @@ class TestBuildSegments(unittest.TestCase):
         segments = build_segments(records, 30.0, 10.0)
         self.assertEqual(len(segments), 1)
         self.assertEqual(segments[0].alert_type, AlertType.NORMAL)
-        self.assertEqual(segments[0].duration_minutes, 40)
+        self.assertEqual(segments[0].duration_seconds, 2400)
 
     def test_high_alert_segment(self):
         records = make_records(datetime(2024, 10, 1, 10, 0), [20.0, 35.0, 35.0, 20.0])
@@ -55,7 +50,7 @@ class TestBuildSegments(unittest.TestCase):
         self.assertEqual(segments[0].alert_type, AlertType.NORMAL)
         self.assertEqual(segments[1].alert_type, AlertType.HIGH)
         self.assertEqual(segments[2].alert_type, AlertType.NORMAL)
-        self.assertEqual(segments[1].duration_minutes, 40)
+        self.assertEqual(segments[1].duration_seconds, 2400)
 
     def test_low_alert_segment(self):
         records = make_records(datetime(2024, 10, 1, 10, 0), [20.0, 5.0, 5.0, 20.0])
@@ -72,7 +67,7 @@ class TestBuildSegments(unittest.TestCase):
         segments = build_segments(records, 30.0, 10.0)
         self.assertEqual(len(segments), 1)
         self.assertEqual(segments[0].alert_type, AlertType.HIGH)
-        self.assertEqual(segments[0].duration_minutes, 0)
+        self.assertEqual(segments[0].duration_seconds, 0)
 
     def test_start_with_alert(self):
         records = make_records(datetime(2024, 10, 1, 10, 0), [35.0, 35.0, 20.0])
@@ -81,23 +76,41 @@ class TestBuildSegments(unittest.TestCase):
         self.assertEqual(segments[0].alert_type, AlertType.HIGH)
         self.assertEqual(segments[1].alert_type, AlertType.NORMAL)
 
+    def test_seconds_precision(self):
+        base = datetime(2024, 10, 1, 10, 0, 0)
+        records = [
+            TemperatureRecord(base, 20.0),
+            TemperatureRecord(base + timedelta(seconds=175), 35.0),
+            TemperatureRecord(base + timedelta(seconds=200), 20.0),
+        ]
+        segments = build_segments(records, 30.0, 10.0)
+        self.assertEqual(len(segments), 3)
+        self.assertEqual(segments[1].alert_type, AlertType.HIGH)
+        self.assertEqual(segments[1].duration_seconds, 25)
+
 
 class TestFormatDuration(unittest.TestCase):
 
     def test_zero(self):
-        self.assertEqual(format_duration(0), "0分钟")
+        self.assertEqual(format_duration(0), "0秒")
+
+    def test_seconds_only(self):
+        self.assertEqual(format_duration(50), "50秒")
+
+    def test_minutes_and_seconds(self):
+        self.assertEqual(format_duration(175), "2分钟55秒")
 
     def test_minutes_only(self):
-        self.assertEqual(format_duration(45), "45分钟")
+        self.assertEqual(format_duration(2700), "45分钟")
 
     def test_hours_and_minutes(self):
-        self.assertEqual(format_duration(125), "2小时5分钟")
+        self.assertEqual(format_duration(7500), "2小时5分钟")
 
     def test_days_hours_minutes(self):
-        self.assertEqual(format_duration(1500), "1天1小时")
+        self.assertEqual(format_duration(90000), "1天1小时")
 
     def test_days_only(self):
-        self.assertEqual(format_duration(2880), "2天")
+        self.assertEqual(format_duration(172800), "2天")
 
 
 class TestBuildSummary(unittest.TestCase):
@@ -106,7 +119,7 @@ class TestBuildSummary(unittest.TestCase):
         records = make_records(datetime(2024, 10, 1, 10, 0),
                                [20.0, 35.0, 35.0, 20.0])
         segments = build_segments(records, 30.0, 10.0)
-        total = sum(s.duration_minutes for s in segments)
+        total = sum(s.duration_seconds for s in segments)
         summary = build_summary(segments, total)
         self.assertEqual(len(summary), 3)
         self.assertEqual(summary[0].status, "温度正常")
@@ -119,7 +132,7 @@ class TestBuildSummary(unittest.TestCase):
         records = make_records(datetime(2024, 10, 1, 10, 0),
                                [20.0, 35.0, 35.0, 20.0])
         segments = build_segments(records, 30.0, 10.0)
-        total = sum(s.duration_minutes for s in segments)
+        total = sum(s.duration_seconds for s in segments)
         summary = build_summary(segments, total)
         pct_sum = sum(r.percentage for r in summary)
         self.assertAlmostEqual(pct_sum, 100.0, places=1)

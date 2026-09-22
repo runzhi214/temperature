@@ -19,14 +19,14 @@ class AlertSegment:
     start: datetime
     end: datetime
     alert_type: AlertType
-    duration_minutes: int
+    duration_seconds: int
 
 
 @dataclass
 class SummaryRow:
     status: str
     duration: str
-    duration_minutes: int
+    duration_seconds: int
     percentage: float
     alert_count: int
 
@@ -36,7 +36,7 @@ class StatisticsInfo:
     start_time: datetime
     end_time: datetime
     total_duration: str
-    total_minutes: int
+    total_seconds: int
     temp_max: float
     temp_min: float
     temp_avg: float
@@ -75,7 +75,7 @@ def build_segments(records, high_threshold, low_threshold):
         )
         if record_type != current_type:
             current_end = records[i].timestamp
-            duration = int((current_end - current_start).total_seconds() / 60)
+            duration = int((current_end - current_start).total_seconds())
             segments.append(AlertSegment(
                 current_start, current_end, current_type, duration
             ))
@@ -83,7 +83,7 @@ def build_segments(records, high_threshold, low_threshold):
             current_start = records[i].timestamp
 
     current_end = records[-1].timestamp
-    duration = int((current_end - current_start).total_seconds() / 60)
+    duration = int((current_end - current_start).total_seconds())
     segments.append(AlertSegment(
         current_start, current_end, current_type, duration
     ))
@@ -91,12 +91,13 @@ def build_segments(records, high_threshold, low_threshold):
     return segments
 
 
-def format_duration(minutes):
-    if minutes <= 0:
-        return "0分钟"
-    days = minutes // (24 * 60)
-    hours = (minutes % (24 * 60)) // 60
-    mins = minutes % 60
+def format_duration(seconds):
+    if seconds <= 0:
+        return "0秒"
+    days = seconds // (24 * 3600)
+    hours = (seconds % (24 * 3600)) // 3600
+    mins = (seconds % 3600) // 60
+    secs = seconds % 60
     parts = []
     if days > 0:
         parts.append(f"{days}天")
@@ -104,10 +105,12 @@ def format_duration(minutes):
         parts.append(f"{hours}小时")
     if mins > 0:
         parts.append(f"{mins}分钟")
+    if secs > 0:
+        parts.append(f"{secs}秒")
     return ''.join(parts)
 
 
-def build_summary(segments, total_minutes):
+def build_summary(segments, total_seconds):
     type_groups = {AlertType.NORMAL: [], AlertType.HIGH: [], AlertType.LOW: []}
     for seg in segments:
         type_groups[seg.alert_type].append(seg)
@@ -121,12 +124,12 @@ def build_summary(segments, total_minutes):
 
     for alert_type, seq, count in order:
         segs = type_groups[alert_type]
-        duration_mins = sum(s.duration_minutes for s in segs)
-        pct = (duration_mins / total_minutes * 100) if total_minutes > 0 else 0.0
+        duration_secs = sum(s.duration_seconds for s in segs)
+        pct = (duration_secs / total_seconds * 100) if total_seconds > 0 else 0.0
         rows.append(SummaryRow(
             status=alert_type.value,
-            duration=format_duration(duration_mins),
-            duration_minutes=duration_mins,
+            duration=format_duration(duration_secs),
+            duration_seconds=duration_secs,
             percentage=round(pct, 1),
             alert_count=count,
         ))
@@ -138,14 +141,14 @@ def build_statistics(records, segments, activation_energy):
     if not records:
         return StatisticsInfo(
             start_time=datetime.min, end_time=datetime.min,
-            total_duration="0分钟", total_minutes=0,
+            total_duration="0秒", total_seconds=0,
             temp_max=0, temp_min=0, temp_avg=0,
             mkt=0, data_count=0
         )
 
     start_time = records[0].timestamp
     end_time = records[-1].timestamp
-    total_minutes = int((end_time - start_time).total_seconds() / 60)
+    total_seconds = int((end_time - start_time).total_seconds())
 
     temps = [r.temperature for r in records]
     temp_max = max(temps)
@@ -156,8 +159,8 @@ def build_statistics(records, segments, activation_energy):
     return StatisticsInfo(
         start_time=start_time,
         end_time=end_time,
-        total_duration=format_duration(total_minutes),
-        total_minutes=total_minutes,
+        total_duration=format_duration(total_seconds),
+        total_seconds=total_seconds,
         temp_max=temp_max,
         temp_min=temp_min,
         temp_avg=temp_avg,
@@ -176,18 +179,18 @@ def calculate(records, high_threshold, low_threshold, activation_energy=83.144):
             summary=[],
             statistics=StatisticsInfo(
                 start_time=datetime.min, end_time=datetime.min,
-                total_duration="0分钟", total_minutes=0,
+                total_duration="0秒", total_seconds=0,
                 temp_max=0, temp_min=0, temp_avg=0,
                 mkt=0, data_count=0
             )
         )
 
     segments = build_segments(records, high_threshold, low_threshold)
-    total_minutes = segments[0].duration_minutes + sum(
-        s.duration_minutes for s in segments[1:]
+    total_seconds = segments[0].duration_seconds + sum(
+        s.duration_seconds for s in segments[1:]
     ) if segments else 0
 
-    summary = build_summary(segments, total_minutes)
+    summary = build_summary(segments, total_seconds)
     statistics = build_statistics(records, segments, activation_energy)
 
     high_count = sum(1 for s in segments if s.alert_type == AlertType.HIGH)

@@ -273,9 +273,9 @@ class TemperatureApp:
         tree.pack(fill='both', expand=True)
 
         for idx, seg in enumerate(alert_segments, 1):
-            start_str = seg.start.strftime("%Y-%m-%d %H:%M")
-            end_str = seg.end.strftime("%Y-%m-%d %H:%M")
-            duration_str = format_duration(seg.duration_minutes)
+            start_str = seg.start.strftime("%Y-%m-%d %H:%M:%S")
+            end_str = seg.end.strftime("%Y-%m-%d %H:%M:%S")
+            duration_str = format_duration(seg.duration_seconds)
             tree.insert('', 'end', values=(idx, start_str, end_str,
                                            seg.alert_type.value, duration_str))
 
@@ -290,8 +290,8 @@ class TemperatureApp:
 
         stats = result.statistics
         info_text = (
-            f"开始时间: {stats.start_time.strftime('%Y-%m-%d %H:%M')}\n"
-            f"结束时间: {stats.end_time.strftime('%Y-%m-%d %H:%M')}\n"
+            f"开始时间: {stats.start_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
+            f"结束时间: {stats.end_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
             f"累计时长: {stats.total_duration}\n"
             f"温度最大值: {stats.temp_max}℃\n"
             f"温度最小值: {stats.temp_min}℃\n"

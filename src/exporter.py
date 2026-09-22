@@ -5,7 +5,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
-from src.calculator import AlertType, CalculationResult
+from src.calculator import AlertType, CalculationResult, format_duration
 from src.logger import get_logger
 
 HIGH_FILL = PatternFill(start_color="FFC7CE", end_color="FFC7CE", fill_type="solid")
@@ -123,7 +123,7 @@ def _write_detail_section(ws, start_row, result):
         start_str = seg.start.strftime("%Y-%m-%d %H:%M")
         end_str = seg.end.strftime("%Y-%m-%d %H:%M")
         type_label = seg.alert_type.value
-        duration_str = _format_segment_duration(seg.duration_minutes)
+        duration_str = format_duration(seg.duration_seconds)
         values = [idx, start_str, end_str, type_label, duration_str]
         for col, v in enumerate(values, 1):
             cell = ws.cell(row=row, column=col, value=v)
@@ -144,8 +144,8 @@ def _write_statistics_section(ws, start_row, result):
 
     stats = result.statistics
     lines = [
-        ("开始时间", stats.start_time.strftime("%Y-%m-%d %H:%M") if stats.data_count > 0 else "—"),
-        ("结束时间", stats.end_time.strftime("%Y-%m-%d %H:%M") if stats.data_count > 0 else "—"),
+        ("开始时间", stats.start_time.strftime("%Y-%m-%d %H:%M:%S") if stats.data_count > 0 else "—"),
+        ("结束时间", stats.end_time.strftime("%Y-%m-%d %H:%M:%S") if stats.data_count > 0 else "—"),
         ("累计时长", stats.total_duration),
         ("温度最大值", f"{stats.temp_max}℃"),
         ("温度最小值", f"{stats.temp_min}℃"),
@@ -164,13 +164,3 @@ def _write_statistics_section(ws, start_row, result):
         row += 1
 
     return row
-
-
-def _format_segment_duration(minutes):
-    if minutes <= 0:
-        return "0分钟"
-    hours = minutes // 60
-    mins = minutes % 60
-    if hours > 0:
-        return f"{hours}小时{mins}分钟" if mins > 0 else f"{hours}小时"
-    return f"{mins}分钟"
