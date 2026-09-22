@@ -13,6 +13,7 @@ from src.calculator import (
 from src.csv_reader import TemperatureRecord, read_csv_files, filter_by_range
 from src.exporter import export_to_excel
 from src.logger import get_logger
+from src.range_importer import parse_range_file
 
 
 class TemperatureApp:
@@ -65,6 +66,7 @@ class TemperatureApp:
         frame = Frame(self.root, padx=10, pady=5)
         frame.pack(fill='x')
         Label(frame, text="计算区间:", font=("Arial", 10, "bold")).pack(side='left')
+        Button(frame, text="导入Excel", command=self._import_ranges_from_excel).pack(side='right', padx=(5, 0))
         Button(frame, text="+ 添加区间", command=self._add_range_row).pack(side='right')
 
         self.range_container = Frame(frame)
@@ -104,6 +106,40 @@ class TemperatureApp:
         row = self.range_rows[index]
         row['frame'].destroy()
         self.range_rows.remove(row)
+
+    def _import_ranges_from_excel(self):
+        filepath = filedialog.askopenfilename(
+            title="选择区间Excel文件",
+            filetypes=[("Excel文件", "*.xlsx *.xls"), ("CSV文件", "*.csv"), ("所有文件", "*.*")]
+        )
+        if not filepath:
+            return
+
+        try:
+            ranges = parse_range_file(filepath)
+        except Exception as e:
+            logger = get_logger()
+            logger.error(f"导入区间文件失败: {e}")
+            messagebox.showerror("错误", f"导入失败: {e}")
+            return
+
+        if not ranges:
+            messagebox.showwarning("提示", "文件中未找到有效的区间数据")
+            return
+
+        while len(self.range_rows) > 1:
+            self._remove_range_row(0)
+        if self.range_rows:
+            self.range_rows[0]['frame'].destroy()
+            self.range_rows.clear()
+
+        for start, end in ranges:
+            self._add_range_row()
+            row = self.range_rows[-1]
+            row['start'].set(start.strftime("%Y-%m-%d %H:%M"))
+            row['end'].set(end.strftime("%Y-%m-%d %H:%M"))
+
+        self._log(f"已导入 {len(ranges)} 个区间")
 
     def _build_button_section(self):
         frame = Frame(self.root, padx=10, pady=5)
