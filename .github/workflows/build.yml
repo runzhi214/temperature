@@ -26,15 +26,39 @@ jobs:
       - name: Build EXE
         run: pyinstaller build.spec
 
+      - name: Generate self-signed certificate
+        run: |
+          $cert = New-SelfSignedCertificate `
+            -Type CodeSigningCert `
+            -Subject "CN=肖润之" `
+            -KeyUsage DigitalSignature `
+            -KeyAlgorithm RSA -KeyLength 2048 `
+            -CertStoreLocation "Cert:\CurrentUser\My" `
+            -NotAfter (Get-Date).AddYears(10)
+          $pwd = ConvertTo-SecureString -String "temp123" -Force -AsPlainText
+          Export-PfxCertificate -Cert $cert -FilePath cert.pfx -Password $pwd
+          Export-Certificate -Cert $cert -FilePath cert.cer
+        shell: powershell
+
+      - name: Sign EXE
+        run: |
+          $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\Bin" -Recurse -Filter "signtool.exe" | Where-Object { $_.FullName -match "x64" } | Select-Object -First 1
+          & $signtool.FullName sign /f cert.pfx /p temp123 /fd SHA256 /d "温度监控数据分析工具" "dist\温度监控数据分析工具.exe"
+        shell: powershell
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: temperature-tool-windows
-          path: dist/
+          path: |
+            dist/
+            cert.cer
 
       - name: Release on tag
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/*.exe
+          files: |
+            dist/*.exe
+            cert.cer
           name: ${{ github.ref_name }}
