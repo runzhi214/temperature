@@ -1,1 +1,10 @@
 data/
+__pycache__/
+*.pyc
+logs/
+*.log
+demo
+demo.*
+dist/
+build/
+*.spec.bak
