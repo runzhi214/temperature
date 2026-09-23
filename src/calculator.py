@@ -52,9 +52,9 @@ class CalculationResult:
 
 
 def classify_temperature(temp, high_threshold, low_threshold):
-    if temp > high_threshold:
+    if temp >= high_threshold:
         return AlertType.HIGH
-    if temp < low_threshold:
+    if temp <= low_threshold:
         return AlertType.LOW
     return AlertType.NORMAL
 

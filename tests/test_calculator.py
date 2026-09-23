@@ -27,11 +27,11 @@ class TestClassifyTemperature(unittest.TestCase):
     def test_normal(self):
         self.assertEqual(classify_temperature(20.0, 30.0, 10.0), AlertType.NORMAL)
 
-    def test_equal_high_not_alert(self):
-        self.assertEqual(classify_temperature(30.0, 30.0, 10.0), AlertType.NORMAL)
+    def test_equal_high_alerts(self):
+        self.assertEqual(classify_temperature(30.0, 30.0, 10.0), AlertType.HIGH)
 
-    def test_equal_low_not_alert(self):
-        self.assertEqual(classify_temperature(10.0, 30.0, 10.0), AlertType.NORMAL)
+    def test_equal_low_alerts(self):
+        self.assertEqual(classify_temperature(10.0, 30.0, 10.0), AlertType.LOW)
 
 
 class TestBuildSegments(unittest.TestCase):
