@@ -31,7 +31,6 @@ def parse_timestamp(raw_value):
 def read_single_csv(filepath):
     logger = get_logger()
     filename = os.path.basename(filepath)
-    records = []
 
     encodings = ['gbk', 'gb18030', 'utf-8-sig', 'utf-8']
     f = None
@@ -61,28 +60,98 @@ def read_single_csv(filepath):
             raise ValueError(f"文件为空: {filename}")
 
         header = [h.strip() for h in header]
-        col_map = _detect_columns(header)
-
-        row_count = 0
-        error_count = 0
-        for row in reader:
-            if len(row) < 6:
-                error_count += 1
-                continue
-            try:
-                ts = parse_timestamp(row[col_map['time']])
-                temp = parse_temperature(row[col_map['data']])
-                records.append(TemperatureRecord(ts, temp))
-                row_count += 1
-            except (ValueError, IndexError) as e:
-                error_count += 1
-                logger.debug(f"文件 {filename} 第 {row_count + error_count} 行解析失败: {e}")
-
-        logger.info(f"文件 {filename} 加载完成: 有效 {row_count} 行, 错误 {error_count} 行, 编码 {used_encoding}")
+        if len(header) == 1:
+            return _read_compact_records(reader, filename, used_encoding)
+        return _read_table_records(reader, filename, header, used_encoding)
     finally:
         f.close()
 
+
+def _read_table_records(reader, filename, header, used_encoding):
+    logger = get_logger()
+    col_map = _detect_columns(header)
+
+    records = []
+    row_count = 0
+    error_count = 0
+    for row in reader:
+        if len(row) < 6:
+            error_count += 1
+            continue
+        try:
+            ts = parse_timestamp(row[col_map['time']])
+            temp = parse_temperature(row[col_map['data']])
+            records.append(TemperatureRecord(ts, temp))
+            row_count += 1
+        except (ValueError, IndexError) as e:
+            error_count += 1
+            logger.debug(f"文件 {filename} 第 {row_count + error_count} 行解析失败: {e}")
+
+    logger.info(f"文件 {filename} 加载完成: 有效 {row_count} 行, 错误 {error_count} 行, 编码 {used_encoding}")
     return records
+
+
+# 单列紧凑格式(CTE 导出): 每行整体带双引号, 内部以制表符分隔 序号/时间/温度 三列,
+# 温度后带尾随制表符; csv.reader 将整行读为单字段, 故按制表符拆分。
+# 如 "10\t5/28/2020 17:16:00\t-15.0625\t" 表示序号10, 2020-05-28 17:16:00, 温度-15.0625;
+# 温度负号自带, 正温度无符号, 最多 4 位小数
+_COMPACT_TS_FORMAT = '%m/%d/%Y %H:%M:%S'
+
+
+def _read_compact_records(reader, filename, used_encoding):
+    logger = get_logger()
+
+    records = []
+    row_count = 0
+    error_count = 0
+    for row in reader:
+        record = None
+        if len(row) == 1:
+            record = _parse_compact_row(row[0])
+        if record is None:
+            error_count += 1
+            logger.debug(f"文件 {filename} 第 {row_count + error_count} 行解析失败: 不符合单列紧凑格式")
+            continue
+        records.append(record)
+        row_count += 1
+
+    if row_count == 0:
+        logger.error(f"单列文件无有效数据行: {filename}")
+        raise ValueError(f"单列文件无有效数据行: {filename}")
+
+    logger.info(f"文件 {filename} 加载完成: 格式 单列紧凑, 有效 {row_count} 行, 错误 {error_count} 行, 编码 {used_encoding}")
+    return records
+
+
+def _parse_compact_row(raw_value):
+    """解析单列紧凑格式数据行, 返回记录或 None。
+
+    行内为制表符分隔的 序号/时间/温度 三列, 尾随制表符产生空尾段。
+    部分行仅有日期无时刻(实测 137 行, 均夹在前一日 23:50 与当日
+    00:10 之间, 为采集器日界行的导出缺陷), 按当日 00:00:00 恢复;
+    字段数不符或时间/温度解析失败的行返回 None, 由调用方按错误行跳过。
+    """
+    parts = [p.strip() for p in raw_value.split('\t')]
+    if parts and parts[-1] == '':
+        parts = parts[:-1]
+    if len(parts) != 3:
+        return None
+
+    ts = None
+    for fmt in (_COMPACT_TS_FORMAT, '%m/%d/%Y'):
+        try:
+            ts = datetime.strptime(parts[1], fmt)
+            break
+        except ValueError:
+            continue
+    if ts is None:
+        return None
+
+    try:
+        temp = parse_temperature(parts[2])
+    except ValueError:
+        return None
+    return TemperatureRecord(ts, temp)
 
 
 def _detect_columns(header):
